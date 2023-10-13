@@ -37,7 +37,9 @@ if TYPE_CHECKING:
 
 _logger = get_logger(__name__)
 
-HEADER_SIZE = 80  # bytes
+HEADER_SIZE = 84  # bytes
+
+BLOCK_PROOF_OF_STAKE_FLAGS = b'\x01\x00\x00\x00'
 
 # see https://github.com/bitcoin/bitcoin/blob/feedb9c84e72e4fff489810a2bbeec09bcda5763/src/chainparams.cpp#L76
 MAX_TARGET = 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # compact: 0x1d00ffff
@@ -49,13 +51,15 @@ class MissingHeader(Exception):
 class InvalidHeader(Exception):
     pass
 
-def serialize_header(header_dict: dict) -> str:
+def serialize_header(header_dict: dict, pos_flags: bool = True) -> str:
     s = int_to_hex(header_dict['version'], 4) \
         + rev_hex(header_dict['prev_block_hash']) \
         + rev_hex(header_dict['merkle_root']) \
         + int_to_hex(int(header_dict['timestamp']), 4) \
         + int_to_hex(int(header_dict['bits']), 4) \
         + int_to_hex(int(header_dict['nonce']), 4)
+    if pos_flags:
+        s += int_to_hex(int(header_dict['pos_flags']), 4)
     return s
 
 def deserialize_header(s: bytes, height: int) -> dict:
@@ -71,15 +75,17 @@ def deserialize_header(s: bytes, height: int) -> dict:
     h['timestamp'] = hex_to_int(s[68:72])
     h['bits'] = hex_to_int(s[72:76])
     h['nonce'] = hex_to_int(s[76:80])
+    h['pos_flags'] = hex_to_int(s[80:84])
     h['block_height'] = height
     return h
 
-def hash_header(header: dict) -> str:
+def hash_header(header: dict, pos_block: bool = False) -> str:
     if header is None:
         return '0' * 64
     if header.get('prev_block_hash') is None:
         header['prev_block_hash'] = '00'*32
-    return hash_raw_header(serialize_header(header))
+    binary = bfh(serialize_header(header, False))
+    return hash_encode(sha256d(binary + BLOCK_PROOF_OF_STAKE_FLAGS)) if pos_block else hash_encode(sha256d(binary))
 
 
 def hash_raw_header(header: str) -> str:
@@ -294,25 +300,27 @@ class Blockchain(Logger):
         self._size = os.path.getsize(p)//HEADER_SIZE if os.path.exists(p) else 0
 
     @classmethod
-    def verify_header(cls, header: dict, prev_hash: str, target: int, expected_header_hash: str=None) -> None:
+    def verify_header(cls, header: dict, prev_hash: str, prev_pos_hash: str, target: int, expected_header_hash: str=None) -> None:
         _hash = hash_header(header)
         if expected_header_hash and expected_header_hash != _hash:
             raise InvalidHeader("hash mismatches with expected: {} vs {}".format(expected_header_hash, _hash))
-        if prev_hash != header.get('prev_block_hash'):
+        prev_block_hash = header.get('prev_block_hash')
+        if not(prev_hash == prev_block_hash or prev_pos_hash == prev_block_hash):
             raise InvalidHeader("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if constants.net.TESTNET:
             return
-        bits = cls.target_to_bits(target)
-        if bits != header.get('bits'):
-            raise InvalidHeader("bits mismatch: %s vs %s" % (bits, header.get('bits')))
-        block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
-        if block_hash_as_num > target:
-            raise InvalidHeader(f"insufficient proof of work: {block_hash_as_num} vs target {target}")
+        # bits = cls.target_to_bits(target)
+        # if bits != header.get('bits'):
+        #     raise InvalidHeader("bits mismatch: %s vs %s" % (bits, header.get('bits')))
+        # block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
+        # if block_hash_as_num > target:
+        #     raise InvalidHeader(f"insufficient proof of work: {block_hash_as_num} vs target {target}")
 
     def verify_chunk(self, index: int, data: bytes) -> None:
         num = len(data) // HEADER_SIZE
         start_height = index * 2016
-        prev_hash = self.get_hash(start_height - 1)
+        prev_hash = self.get_hash(start_height - 1, False)
+        prev_pos_hash = self.get_hash(start_height - 1, True)
         target = self.get_target(index-1)
         for i in range(num):
             height = start_height + i
@@ -322,8 +330,9 @@ class Blockchain(Logger):
                 expected_header_hash = None
             raw_header = data[i*HEADER_SIZE : (i+1)*HEADER_SIZE]
             header = deserialize_header(raw_header, index*2016 + i)
-            self.verify_header(header, prev_hash, target, expected_header_hash)
-            prev_hash = hash_header(header)
+            self.verify_header(header, prev_hash, prev_pos_hash, target, expected_header_hash)
+            prev_hash = hash_header(header, False)
+            prev_pos_hash = hash_header(header, True)
 
     @with_lock
     def path(self):
@@ -496,7 +505,7 @@ class Blockchain(Logger):
             return True
         return False
 
-    def get_hash(self, height: int) -> str:
+    def get_hash(self, height: int, pos_block: bool = False) -> str:
         def is_height_checkpoint():
             within_cp_range = height <= constants.net.max_checkpoint()
             at_chunk_boundary = (height+1) % 2016 == 0
@@ -514,7 +523,7 @@ class Blockchain(Logger):
             header = self.read_header(height)
             if header is None:
                 raise MissingHeader(height)
-            return hash_header(header)
+            return hash_header(header, pos_block)
 
     def get_target(self, index: int) -> int:
         # compute target from chunk x, used in chunk x+1
@@ -617,22 +626,25 @@ class Blockchain(Logger):
         if header is None:
             return False
         height = header['block_height']
-        if check_height and self.height() != height - 1:
+        self_height = self.height()
+        prev_block_hash = header.get('prev_block_hash')
+        if check_height and self_height != height - 1:
             return False
         if height == 0:
             return hash_header(header) == constants.net.GENESIS
         try:
-            prev_hash = self.get_hash(height - 1)
+            prev_hash = self.get_hash(height - 1, False)
+            prev_pos_hash = self.get_hash(height - 1, True)
         except Exception:
             return False
-        if prev_hash != header.get('prev_block_hash'):
+        if not(prev_hash == prev_block_hash or prev_pos_hash == prev_block_hash):
             return False
         try:
-            target = self.get_target(height // 2016 - 1)
+            target = self.bits_to_target(header['bits'])
         except MissingHeader:
             return False
         try:
-            self.verify_header(header, prev_hash, target)
+            self.verify_header(header, prev_hash, prev_pos_hash, target)
         except BaseException as e:
             return False
         return True

@@ -637,7 +637,9 @@ class Interface(Logger):
             size = max(size, 0)
         try:
             self._requested_chunks.add(index)
-            res = await self.session.send_request('blockchain.block.headers', [index * 2016, size])
+            start_height = index * 2016
+            count  = size
+            res = await self.session.send_request('blockchain.block.headers', [start_height, count])
         finally:
             self._requested_chunks.discard(index)
         assert_dict_contains_field(res, field_name='count')
