@@ -1034,10 +1034,10 @@ This will result in longer routes; it might increase your fees and decrease the 
         'show_tx_locktime', default=False, type_=bool,
         short_desc=lambda: _('Edit Locktime'),
     )
-    GUI_QT_SHOW_TAB_ADDRESSES = ConfigVar('show_addresses_tab', default=False, type_=bool)
+    GUI_QT_SHOW_TAB_ADDRESSES = ConfigVar('show_addresses_tab', default=True, type_=bool)
     GUI_QT_SHOW_TAB_CHANNELS = ConfigVar('show_channels_tab', default=False, type_=bool)
-    GUI_QT_SHOW_TAB_UTXO = ConfigVar('show_utxo_tab', default=False, type_=bool)
-    GUI_QT_SHOW_TAB_CONTACTS = ConfigVar('show_contacts_tab', default=False, type_=bool)
+    GUI_QT_SHOW_TAB_UTXO = ConfigVar('show_utxo_tab', default=True, type_=bool)
+    GUI_QT_SHOW_TAB_CONTACTS = ConfigVar('show_contacts_tab', default=True, type_=bool)
     GUI_QT_SHOW_TAB_CONSOLE = ConfigVar('show_console_tab', default=False, type_=bool)
 
     GUI_QML_PREFERRED_REQUEST_TYPE = ConfigVar('preferred_request_type', default='bolt11', type_=str)
