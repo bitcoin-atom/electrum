@@ -36,8 +36,8 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
     # note: we can't use absolute paths here. see #7787
     data_files += [
         (os.path.join('share', 'applications'),               ['electrum.desktop']),
-        (os.path.join('share', 'pixmaps'),                    ['electrum/gui/icons/electrum.png']),
-        (os.path.join('share', 'icons/hicolor/128x128/apps'), ['electrum/gui/icons/electrum.png']),
+        (os.path.join('share', 'pixmaps'),                    ['electrum/gui/icons/electrum-atom.png']),
+        (os.path.join('share', 'icons/hicolor/128x128/apps'), ['electrum/gui/icons/electrum-atom.png']),
     ]
 
 extras_require = {
