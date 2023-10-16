@@ -259,7 +259,7 @@ class QENewWalletWizard(NewWalletWizard, QEAbstractWizard, MessageBoxMixin):
 
 class WCWalletName(WizardComponent, Logger):
     def __init__(self, parent, wizard):
-        WizardComponent.__init__(self, parent, wizard, title=_('Electrum wallet'))
+        WizardComponent.__init__(self, parent, wizard, title=_('Electrum Atom wallet'))
         Logger.__init__(self)
 
         path = wizard._path
