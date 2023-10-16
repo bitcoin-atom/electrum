@@ -16,7 +16,7 @@ from electrum.invoices import PR_DEFAULT_EXPIRATION_WHEN_CREATING
 from electrum.invoices import PR_EXPIRED, pr_expiration_values
 from electrum.logging import Logger
 
-from .amountedit import AmountEdit, BTCAmountEdit, SizedFreezableLineEdit
+from .amountedit import AmountEdit, BCAAmountEdit, SizedFreezableLineEdit
 from .qrcodewidget import QRCodeWidget
 from .util import read_QIcon, ColorScheme, HelpLabel, WWLabel, MessageBoxMixin, MONOSPACE_FONT
 from .util import ButtonsTextEdit, get_iconname_qrcode
@@ -55,7 +55,7 @@ class ReceiveTab(QWidget, MessageBoxMixin, Logger):
         grid.addWidget(QLabel(_('Description')), 0, 0)
         grid.addWidget(self.receive_message_e, 0, 1, 1, 4)
 
-        self.receive_amount_e = BTCAmountEdit(self.window.get_decimal_point)
+        self.receive_amount_e = BCAAmountEdit(self.window.get_decimal_point)
         grid.addWidget(QLabel(_('Requested amount')), 1, 0)
         grid.addWidget(self.receive_amount_e, 1, 1)
 

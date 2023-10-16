@@ -227,14 +227,14 @@ class SimpleConfig(Logger):
 
         # units and formatting
         # FIXME is this duplication (dp, nz, post_sat, thou_sep) due to performance reasons??
-        self.decimal_point = self.BTC_AMOUNTS_DECIMAL_POINT
+        self.decimal_point = self.BCA_AMOUNTS_DECIMAL_POINT
         try:
             decimal_point_to_base_unit_name(self.decimal_point)
         except UnknownBaseUnit:
             self.decimal_point = DECIMAL_POINT_DEFAULT
-        self.num_zeros = self.BTC_AMOUNTS_FORCE_NZEROS_AFTER_DECIMAL_POINT
-        self.amt_precision_post_satoshi = self.BTC_AMOUNTS_PREC_POST_SAT
-        self.amt_add_thousands_sep = self.BTC_AMOUNTS_ADD_THOUSANDS_SEP
+        self.num_zeros = self.BCA_AMOUNTS_FORCE_NZEROS_AFTER_DECIMAL_POINT
+        self.amt_precision_post_satoshi = self.BCA_AMOUNTS_PREC_POST_SAT
+        self.amt_add_thousands_sep = self.BCA_AMOUNTS_ADD_THOUSANDS_SEP
 
     def electrum_path(self):
         # Read electrum_path from command line
@@ -370,7 +370,7 @@ class SimpleConfig(Logger):
         base_unit = self.user_config.get('base_unit')
         if isinstance(base_unit, str):
             self._set_key_in_user_config('base_unit', None)
-            map_ = {'btc':8, 'mbtc':5, 'ubtc':2, 'bits':2, 'sat':0}
+            map_ = {'bca':8, 'mbca':5, 'ubca':2, 'bits':2, 'sat':0}
             decimal_point = map_.get(base_unit.lower())
             self._set_key_in_user_config('decimal_point', decimal_point)
 
@@ -831,7 +831,7 @@ class SimpleConfig(Logger):
     def set_base_unit(self, unit):
         assert unit in base_units.keys()
         self.decimal_point = base_unit_name_to_decimal_point(unit)
-        self.BTC_AMOUNTS_DECIMAL_POINT = self.decimal_point
+        self.BCA_AMOUNTS_DECIMAL_POINT = self.decimal_point
 
     def get_decimal_point(self):
         return self.decimal_point
@@ -989,7 +989,7 @@ This will result in longer routes; it might increase your fees and decrease the 
     TEST_SHUTDOWN_LEGACY = ConfigVar('test_shutdown_legacy', default=False, type_=bool)
 
     FEE_EST_DYNAMIC = ConfigVar('dynamic_fees', default=True, type_=bool)
-    FEE_EST_USE_MEMPOOL = ConfigVar('mempool_fees', default=False, type_=bool)
+    FEE_EST_USE_MEMPOOL = ConfigVar('mempool_fees', default=True, type_=bool)
     FEE_EST_STATIC_FEERATE_FALLBACK = ConfigVar('fee_per_kb', default=FEERATE_FALLBACK_STATIC_FEE, type_=int)
     FEE_EST_DYNAMIC_ETA_SLIDERPOS = ConfigVar('fee_level', default=2, type_=int)
     FEE_EST_DYNAMIC_MEMPOOL_SLIDERPOS = ConfigVar('depth_level', default=2, type_=int)
@@ -1043,17 +1043,17 @@ This will result in longer routes; it might increase your fees and decrease the 
     GUI_QML_PREFERRED_REQUEST_TYPE = ConfigVar('preferred_request_type', default='bolt11', type_=str)
     GUI_QML_USER_KNOWS_PRESS_AND_HOLD = ConfigVar('user_knows_press_and_hold', default=False, type_=bool)
 
-    BTC_AMOUNTS_DECIMAL_POINT = ConfigVar('decimal_point', default=DECIMAL_POINT_DEFAULT, type_=int)
-    BTC_AMOUNTS_FORCE_NZEROS_AFTER_DECIMAL_POINT = ConfigVar(
+    BCA_AMOUNTS_DECIMAL_POINT = ConfigVar('decimal_point', default=DECIMAL_POINT_DEFAULT, type_=int)
+    BCA_AMOUNTS_FORCE_NZEROS_AFTER_DECIMAL_POINT = ConfigVar(
         'num_zeros', default=0, type_=int,
         short_desc=lambda: _('Zeros after decimal point'),
         long_desc=lambda: _('Number of zeros displayed after the decimal point. For example, if this is set to 2, "1." will be displayed as "1.00"'),
     )
-    BTC_AMOUNTS_PREC_POST_SAT = ConfigVar(
+    BCA_AMOUNTS_PREC_POST_SAT = ConfigVar(
         'amt_precision_post_satoshi', default=0, type_=int,
         short_desc=lambda: _("Show Lightning amounts with msat precision"),
     )
-    BTC_AMOUNTS_ADD_THOUSANDS_SEP = ConfigVar(
+    BCA_AMOUNTS_ADD_THOUSANDS_SEP = ConfigVar(
         'amt_add_thousands_sep', default=False, type_=bool,
         short_desc=lambda: _("Add thousand separators to bitcoin amounts"),
     )

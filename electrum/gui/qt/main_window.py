@@ -75,7 +75,7 @@ from electrum.lnaddr import lndecode
 from electrum.submarine_swaps import SwapServerError
 
 from .exception_window import Exception_Hook
-from .amountedit import BTCAmountEdit
+from .amountedit import BCAAmountEdit
 from .qrcodewidget import QRDialog
 from .qrtextedit import ShowQRTextEdit, ScanQRTextEdit, ScanShowQRTextEdit
 from .transaction_dialog import show_transaction
@@ -893,7 +893,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
 
     def format_amount_and_units(self, amount_sat, *, timestamp: int = None) -> str:
         """Returns string with both bitcoin and fiat amounts, in desired units.
-        E.g. 500_000 -> '0.005 BTC (191.42 EUR)'
+        E.g. 500_000 -> '0.005 BCA (191.42 EUR)'
         """
         text = self.config.format_amount_and_units(amount_sat)
         fiat = self.fx.format_amount_and_units(amount_sat, timestamp=timestamp) if self.fx else None
@@ -2732,7 +2732,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
         output_amount = QLabel('')
         grid.addWidget(QLabel(_('Output amount') + ':'), 2, 0)
         grid.addWidget(output_amount, 2, 1)
-        fee_e = BTCAmountEdit(self.get_decimal_point)
+        fee_e = BCAAmountEdit(self.get_decimal_point)
         combined_fee = QLabel('')
         combined_feerate = QLabel('')
         def on_fee_edit(x):
