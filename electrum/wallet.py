@@ -420,7 +420,7 @@ class Abstract_Wallet(ABC, Logger, EventListener):
         return new_path
 
     def has_lightning(self) -> bool:
-        return bool(self.lnworker)
+        return False #bool(self.lnworker)
 
     def can_have_lightning(self) -> bool:
         # we want static_remotekey to be a wallet address

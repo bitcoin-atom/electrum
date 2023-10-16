@@ -224,10 +224,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
                 tabs.addTab(tab, icon, description.replace("&", ""))
 
         add_optional_tab(tabs, self.addresses_tab, read_QIcon("tab_addresses.png"), _("&Addresses"))
-        add_optional_tab(tabs, self.channels_tab, read_QIcon("lightning.png"), _("Channels"))
+        # add_optional_tab(tabs, self.channels_tab, read_QIcon("lightning.png"), _("Channels"))
         add_optional_tab(tabs, self.utxo_tab, read_QIcon("tab_coins.png"), _("Co&ins"))
         add_optional_tab(tabs, self.contacts_tab, read_QIcon("tab_contacts.png"), _("Con&tacts"))
-        add_optional_tab(tabs, self.console_tab, read_QIcon("tab_console.png"), _("Con&sole"))
+        # add_optional_tab(tabs, self.console_tab, read_QIcon("tab_console.png"), _("Con&sole"))
 
         tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -727,9 +727,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
         view_menu = menubar.addMenu(_("&View"))
         add_toggle_action(view_menu, self.addresses_tab)
         add_toggle_action(view_menu, self.utxo_tab)
-        add_toggle_action(view_menu, self.channels_tab)
+        # add_toggle_action(view_menu, self.channels_tab)
         add_toggle_action(view_menu, self.contacts_tab)
-        add_toggle_action(view_menu, self.console_tab)
+        # add_toggle_action(view_menu, self.console_tab)
 
         tools_menu = menubar.addMenu(_("&Tools"))  # type: QMenu
         preferences_action = tools_menu.addAction(_("Preferences"), self.settings_dialog)  # type: QAction
@@ -745,7 +745,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
         tools_menu.addAction(_("&Network"), self.gui_object.show_network_dialog).setEnabled(bool(self.network))
         if self.network and self.network.local_watchtower:
             tools_menu.addAction(_("Local &Watchtower"), self.gui_object.show_watchtower_dialog)
-        tools_menu.addAction(_("&Plugins"), self.plugins_dialog)
+        # tools_menu.addAction(_("&Plugins"), self.plugins_dialog)
         tools_menu.addSeparator()
         tools_menu.addAction(_("&Sign/verify message"), self.sign_verify_message)
         tools_menu.addAction(_("&Encrypt/decrypt message"), self.encrypt_message)
@@ -761,15 +761,15 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
 
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
-        help_menu.addAction(_("&Check for updates"), self.show_update_check)
-        help_menu.addAction(_("&Official website"), lambda: webopen("https://electrum.org"))
-        help_menu.addSeparator()
-        help_menu.addAction(_("&Documentation"), lambda: webopen("http://docs.electrum.org/")).setShortcut(QKeySequence.HelpContents)
-        if not constants.net.TESTNET:
-            help_menu.addAction(_("&Bitcoin Paper"), self.show_bitcoin_paper)
-        help_menu.addAction(_("&Report Bug"), self.show_report_bug)
-        help_menu.addSeparator()
-        help_menu.addAction(_("&Donate to server"), self.donate_to_server)
+        # help_menu.addAction(_("&Check for updates"), self.show_update_check)
+        # help_menu.addAction(_("&Official website"), lambda: webopen("https://electrum.org"))
+        #  help_menu.addSeparator()
+        # help_menu.addAction(_("&Documentation"), lambda: webopen("http://docs.electrum.org/")).setShortcut(QKeySequence.HelpContents)
+        # if not constants.net.TESTNET:
+            # help_menu.addAction(_("&Bitcoin Paper"), self.show_bitcoin_paper)
+        # help_menu.addAction(_("&Report Bug"), self.show_report_bug)
+        # help_menu.addSeparator()
+        # help_menu.addAction(_("&Donate to server"), self.donate_to_server)
 
         self.setMenuBar(menubar)
 
@@ -1845,7 +1845,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
             grid.addWidget(WWLabel(ks_type), cur_row, 1)
             cur_row += 1
         # lightning
-        grid.addWidget(WWLabel(_('Lightning') + ':'), cur_row, 0)
+        # grid.addWidget(WWLabel(_('Lightning') + ':'), cur_row, 0)
         from .util import IconLabel
         if self.wallet.has_lightning():
             if self.wallet.lnworker.has_deterministic_node_id():
@@ -1871,14 +1871,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger, QtEventListener):
             grid.addWidget(nodeid_e, cur_row, 0, 1, 4)
             cur_row += 1
         else:
-            if self.wallet.can_have_lightning():
-                grid.addWidget(WWLabel('Not enabled'), cur_row, 1)
-                button = QPushButton(_("Enable"))
-                button.pressed.connect(lambda: self.init_lightning_dialog(dialog))
-                grid.addWidget(button, cur_row, 3)
-            else:
-                grid.addWidget(WWLabel(_("Not available for this wallet.")), cur_row, 1)
-                grid.addWidget(HelpButton(_("Lightning is currently restricted to HD wallets with p2wpkh addresses.")), cur_row, 2)
+            # if self.wallet.can_have_lightning():
+            #     grid.addWidget(WWLabel('Not enabled'), cur_row, 1)
+            #     button = QPushButton(_("Enable"))
+            #     button.pressed.connect(lambda: self.init_lightning_dialog(dialog))
+            #     grid.addWidget(button, cur_row, 3)
+            # else:
+            #     grid.addWidget(WWLabel(_("Not available for this wallet.")), cur_row, 1)
+            #     grid.addWidget(HelpButton(_("Lightning is currently restricted to HD wallets with p2wpkh addresses.")), cur_row, 2)
             cur_row += 1
         vbox.addLayout(grid)
 
