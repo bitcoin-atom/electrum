@@ -621,7 +621,7 @@ class ElectrumGui(BaseElectrumGui, EventListener):
                 pr=None,
                 URI=None)
         else:
-            self.show_message(_('Invalid Bitcoin address'))
+            self.show_message(_('Invalid BitcoinAtom address'))
             return
         return invoice
 
