@@ -107,7 +107,7 @@ class HW_PluginBase(BasePlugin, ABC):
         if keystore is None:
             keystore = wallet.get_keystore()
         if not is_address(address):
-            keystore.handler.show_error(_('Invalid BitcoinAtom Address'))
+            keystore.handler.show_error(_('Invalid Bitcoin Atom Address'))
             return False
         if not wallet.is_mine(address):
             keystore.handler.show_error(_('Address not in wallet.'))

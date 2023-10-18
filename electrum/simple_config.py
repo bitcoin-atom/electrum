@@ -902,7 +902,7 @@ class SimpleConfig(Logger):
     WALLET_UNCONF_UTXO_FREEZE_THRESHOLD_SAT = ConfigVar('unconf_utxo_freeze_threshold', default=5_000, type_=int)
     WALLET_BIP21_LIGHTNING = ConfigVar(
         'bip21_lightning', default=False, type_=bool,
-        short_desc=lambda: _('Add lightning requests to bitcoinatom URIs'),
+        short_desc=lambda: _('Add lightning requests to bitcoin atom URIs'),
         long_desc=lambda: _('This may result in large QR codes'),
     )
     WALLET_BOLT11_FALLBACK = ConfigVar(

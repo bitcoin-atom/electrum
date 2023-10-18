@@ -51,7 +51,7 @@ WizardComponent {
             Layout.fillWidth: true
             ButtonGroup.group: wallettypegroup
             property string wallettype: 'imported'
-            text: qsTr('Import BitcoinAtom addresses or private keys')
+            text: qsTr('Import Bitcoin Atom addresses or private keys')
         }
     }
 }
