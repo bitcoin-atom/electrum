@@ -83,6 +83,19 @@ class BitcoinAtomMainnet(AbstractNet):
     CHECKPOINTS = read_json('checkpoints.json', [])
     BLOCK_HEIGHT_FIRST_LIGHTNING_CHANNELS = 497000
     FORK_HEIGHT = 505888
+    BCA_HEIGHT = 505888
+    BCA_INIT_LIM = 50000
+    POW_LIMIT = 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    POW_LIMIT_START = 0x000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    INITIAL_HASH_TARGET_POS = 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    POW_TARGET_TIMESPAN = 14 * 24 * 60 * 60 # two weeks
+    POW_TARGET_SPACING = 10 * 60
+    POS_TARGET_TIMESPAN = 14 * 24 * 60 * 60  # two weeks
+    POS_TARGET_SPACING = 10 * 60
+    NEW_DIFFICULTY_ADJUSTMENT_ALGO_HEIGHT = 589500
+    POW_AVERAGING_WINDOW = 11
+    POW_ALLOW_MIN_DIFFICULTY_BLOCKS = False
+    POW_NO_RETARGETING = False
 
     XPRV_HEADERS = {
         'standard':    0x0488ade4,  # xprv

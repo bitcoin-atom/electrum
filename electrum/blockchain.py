@@ -40,6 +40,10 @@ _logger = get_logger(__name__)
 HEADER_SIZE = 84  # bytes
 
 BLOCK_PROOF_OF_STAKE_FLAGS = b'\x01\x00\x00\x00'
+BLOCK_PROOF_OF_STAKE = (1 << 0)
+BLOCK_STAKE_ENTROPY = (1 << 1)
+BLOCK_STAKE_MODIFIER = (1 << 2)
+BLOCK_NEW_FORMAT = (1 << 31)
 
 # see https://github.com/bitcoin/bitcoin/blob/feedb9c84e72e4fff489810a2bbeec09bcda5763/src/chainparams.cpp#L76
 MAX_TARGET = 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # compact: 0x1d00ffff
@@ -98,7 +102,7 @@ blockchains = {}  # type: Dict[str, Blockchain]
 blockchains_lock = threading.RLock()  # lock order: take this last; so after Blockchain.lock
 
 
-def read_blockchains(config: 'SimpleConfig'):
+def read_blockchains(config: 'SimpleConfig', headers_cache: dict = None):
     best_chain = Blockchain(config=config,
                             forkpoint=0,
                             parent=None,
@@ -108,7 +112,7 @@ def read_blockchains(config: 'SimpleConfig'):
     # consistency checks
     if best_chain.height() > constants.net.max_checkpoint():
         header_after_cp = best_chain.read_header(constants.net.max_checkpoint()+1)
-        if not header_after_cp or not best_chain.can_connect(header_after_cp, check_height=False):
+        if not header_after_cp or not best_chain.can_connect(header_after_cp, check_height=False, headers_cache=headers_cache):
             _logger.info("[blockchain] deleting best chain. cannot connect header after last cp to last cp.")
             os.unlink(best_chain.path())
             best_chain.update_size()
@@ -123,7 +127,7 @@ def read_blockchains(config: 'SimpleConfig'):
         _logger.info(f"[blockchain] deleting chain {filename}: {reason}")
         os.unlink(os.path.join(fdir, filename))
 
-    def instantiate_chain(filename):
+    def instantiate_chain(filename, headers_cache: dict = None):
         __, forkpoint, prev_hash, first_hash = filename.split('_')
         forkpoint = int(forkpoint)
         prev_hash = (64-len(prev_hash)) * "0" + prev_hash  # left-pad with zeroes
@@ -149,7 +153,7 @@ def read_blockchains(config: 'SimpleConfig'):
         if first_hash != hash_header(h):
             delete_chain(filename, "incorrect first hash for chain")
             return
-        if not b.parent.can_connect(h, check_height=False):
+        if not b.parent.can_connect(h, check_height=False, headers_cache=headers_cache):
             delete_chain(filename, "cannot connect chain to parent")
             return
         chain_id = b.get_id()
@@ -157,7 +161,7 @@ def read_blockchains(config: 'SimpleConfig'):
         blockchains[chain_id] = b
 
     for filename in l:
-        instantiate_chain(filename)
+        instantiate_chain(filename, headers_cache)
 
 
 def get_best_chain() -> 'Blockchain':
@@ -267,8 +271,8 @@ class Blockchain(Logger):
         except Exception:
             return False
 
-    def fork(parent, header: dict) -> 'Blockchain':
-        if not parent.can_connect(header, check_height=False):
+    def fork(parent, header: dict, headers_cache: dict = None) -> 'Blockchain':
+        if not parent.can_connect(header, check_height=False, headers_cache=headers_cache):
             raise Exception("forking header does not connect to parent chain")
         forkpoint = header.get('block_height')
         self = Blockchain(config=parent.config,
@@ -299,8 +303,213 @@ class Blockchain(Logger):
         p = self.path()
         self._size = os.path.getsize(p)//HEADER_SIZE if os.path.exists(p) else 0
 
+    def get_last_block_index(self, is_pos: bool, height: int, headers_cache: dict):
+        if is_pos:
+            while True:
+                if height not in headers_cache:
+                    return None
+                header = headers_cache[height]
+                if bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+                    return height
+                if (height <= constants.net.FORK_HEIGHT):
+                    return None
+                if height == 0:
+                    return None
+                height -= 1
+        else:
+            proof_of_work_limit = Blockchain.target_to_bits(constants.net.POW_LIMIT)
+            proof_of_work_limit_start = Blockchain.target_to_bits(constants.net.POW_LIMIT_START)
+            difficulty_adjustment_interval_pow = constants.net.POW_TARGET_TIMESPAN // constants.net.POW_TARGET_SPACING
+            while True:
+                if height not in headers_cache:
+                    return None
+                header = headers_cache[height]
+                res_1 = bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE)
+                res_2 = bool((height % difficulty_adjustment_interval_pow) != 0 and (header['bits'] == proof_of_work_limit))
+                res_3 = bool(header['bits'] == proof_of_work_limit_start)
+                if not(res_1 or res_2 or res_3):
+                    return height
+                if height == 0:
+                    return None
+                height -= 1
+
+    def build_skip(self, self_height: int):
+        return self.get_ancestor(self.get_skip_height(self_height), self_height - 1)
+
+    def invert_lowest_one(self, n: int):
+        return n & (n - 1)
+
+    def get_skip_height(self, height: int):
+        if height < 2:
+            return 0
+        if bool(height & 1):
+            return self.invert_lowest_one(self.invert_lowest_one(height - 1)) + 1
+        else:
+            return self.invert_lowest_one(height)
+
+    def get_ancestor(self, height: int, self_height: int):
+        if height > self_height or height < 0:
+            return None
+        index_walk = self_height
+        height_walk = self_height
+        while height_walk > height:
+            height_skip = self.get_skip_height(height_walk)
+            height_skip_prev = self.get_skip_height(height_walk - 1)
+            if self.build_skip(index_walk) != None and \
+                (height_skip == height or (height_skip > height and not(height_skip_prev < height_skip - 2 and height_skip_prev >= height))):
+                index_walk = self.build_skip(index_walk)
+                height_walk = height_skip
+            else:
+                index_walk -= 1
+                height_walk -= 1
+        return index_walk
+
+    def get_pow_ancestor(self, pow_height: int, self_height: int, headers_cache: dict):
+        if pow_height > self_height or pow_height < 0:
+            return None
+        if pow_height < constants.net.BCA_HEIGHT:
+            return self.get_ancestor(pow_height, self_height)
+        index_walk = self_height
+        prev_index_walk = self_height
+        height_walk = self_height
+        while index_walk > pow_height:
+            height_skip = self.get_skip_height(height_walk)
+            prev_index_walk = index_walk
+            index_walk = self.build_skip(index_walk)
+            height_walk = height_skip
+        while True:
+            header = headers_cache[prev_index_walk]
+            if not bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+                break
+            if prev_index_walk <= pow_height:
+                break
+            prev_index_walk -= 1
+        return prev_index_walk
+
+    def calculate_next_work_required_old(self, height: int, first_block_time: int, headers_cache: dict):
+        header = headers_cache[height]
+        if constants.net.POW_NO_RETARGETING:
+            return header
+        actual_timespan = header['timestamp'] - first_block_time
+        if actual_timespan < constants.net.POW_TARGET_TIMESPAN // 4:
+            actual_timespan = constants.net.POW_TARGET_TIMESPAN // 4
+        if actual_timespan > constants.net.POW_TARGET_TIMESPAN * 4:
+            actual_timespan = constants.net.POW_TARGET_TIMESPAN * 4
+        pow_limit = constants.net.POW_LIMIT
+        new = Blockchain.bits_to_target(header['bits'])
+        new *= actual_timespan
+        new //= constants.net.POW_TARGET_TIMESPAN
+        if new > pow_limit:
+            new = pow_limit
+        return Blockchain.target_to_bits(new)
+
+    def get_next_work_required_for_pos(self, height: int, header: dict, headers_cache: dict):
+        if headers_cache is None:
+            raise Exception('invalid headers cache')
+        index_prev = self.get_last_block_index(True, height, headers_cache)
+        if index_prev is None:
+            return Blockchain.target_to_bits(constants.net.INITIAL_HASH_TARGET_POS)
+        index_prev_prev = self.get_last_block_index(True, height - 1, headers_cache)
+        if index_prev_prev is None:
+            return Blockchain.target_to_bits(constants.net.INITIAL_HASH_TARGET_POS)
+        header_prev = headers_cache[index_prev]
+        header_prev_prev = headers_cache[index_prev_prev]
+        if header_prev is None or header_prev_prev is None:
+            return None
+        actual_spacing = header_prev['timestamp'] - header_prev_prev['timestamp']
+        difficulty_adjustment_interval_pos = constants.net.POS_TARGET_TIMESPAN // constants.net.POS_TARGET_SPACING
+        interval = difficulty_adjustment_interval_pos
+        proof_of_work_limit = constants.net.POW_LIMIT
+        new = Blockchain.bits_to_target(header_prev['bits'])
+        new *= ((interval - 1) * constants.net.POS_TARGET_SPACING + actual_spacing + actual_spacing)
+        new //= ((interval + 1) * constants.net.POS_TARGET_SPACING)
+        if (new >= proof_of_work_limit):
+            new = proof_of_work_limit
+        return Blockchain.target_to_bits(new)
+
+    def get_next_work_required_for_pow_old(self, height: int, header: dict, headers_cache: dict):
+        proof_of_work_limit = Blockchain.target_to_bits(constants.net.POW_LIMIT)
+        proof_of_work_limit_start = Blockchain.target_to_bits(constants.net.POW_LIMIT_START)
+        difficulty_adjustment_interval_pow = constants.net.POW_TARGET_TIMESPAN // constants.net.POW_TARGET_SPACING
+        limit = constants.net.BCA_HEIGHT + constants.net.BCA_INIT_LIM
+        tmp_height = height + 1
+        if tmp_height >= constants.net.BCA_HEIGHT and tmp_height < limit:
+            return proof_of_work_limit_start
+        pow_height = height + 1
+        if pow_height >= limit and pow_height < limit + difficulty_adjustment_interval_pow:
+            return proof_of_work_limit
+        if ((height + 1) % difficulty_adjustment_interval_pow) != 0:
+            if constants.net.POW_ALLOW_MIN_DIFFICULTY_BLOCKS:
+                if header['timestamp'] > headers_cache[height]['timestamp'] + constants.net.POW_TARGET_SPACING * 2:
+                    return proof_of_work_limit
+                else:
+                    index = self.get_last_block_index(False, height, headers_cache)
+                    return headers_cache[index]['bits']
+            if height >= 588671:
+                while True:
+                    if height not in headers_cache:
+                        break
+                    tmp_header = headers_cache[height]
+                    if not bool(tmp_header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+                        break
+                    if height == 0:
+                        break
+                    height -= 1
+                return headers_cache[height]['bits']
+        if constants.net.POW_ALLOW_MIN_DIFFICULTY_BLOCKS:
+            if height >= 588671 and height < 588671 + difficulty_adjustment_interval_pow:
+                return 0x1903fffc
+        height_first = height - (difficulty_adjustment_interval_pow - 1)
+        index_first = self.get_pow_ancestor(height_first, height, headers_cache)
+        return self.calculate_next_work_required_old(height, headers_cache[index_first]['timestamp'], headers_cache)
+
+    def calculate_next_work_required(self, avg: int, last_block_time: int, first_block_time: int):
+        averaging_window_timespan = constants.net.POW_AVERAGING_WINDOW * constants.net.POW_TARGET_SPACING
+        actual_timespan = last_block_time - first_block_time
+        actual_timespan = averaging_window_timespan + (actual_timespan - averaging_window_timespan) // 4
+        pow_limit = constants.net.POW_LIMIT
+        new = avg
+        new //= averaging_window_timespan
+        new *= actual_timespan
+        if new > pow_limit:
+            new = pow_limit
+        return Blockchain.target_to_bits(new)
+
+    def get_next_work_required_for_pow(self, height: int, header: dict, headers_cache: dict):
+        tmp_height = height + 1
+        if tmp_height < constants.net.NEW_DIFFICULTY_ADJUSTMENT_ALGO_HEIGHT:
+            return self.get_next_work_required_for_pow_old(height, header, headers_cache)
+        header_last = headers_cache[height]
+        total = 0
+        i = 0
+        while True:
+            if height not in headers_cache:
+                height = None
+                break
+            if i >= constants.net.POW_AVERAGING_WINDOW:
+                break
+            tmp_header = headers_cache[height]
+            if not bool(tmp_header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+                total += Blockchain.bits_to_target(tmp_header['bits'])
+                i += 1
+            if height == 0:
+                height = None
+                break
+            height -= 1
+        if height is None:
+            return Blockchain.target_to_bits(constants.net.POW_LIMIT)
+        avg = total // constants.net.POW_AVERAGING_WINDOW
+        header_first = headers_cache[height]
+        return self.calculate_next_work_required(avg, header_last['timestamp'], header_first['timestamp'])
+
+    def get_next_work_required(self, is_pos: bool, height: int, header: dict, headers_cache: dict):
+        if is_pos:
+            return self.get_next_work_required_for_pos(height, header, headers_cache)
+        else:
+            return self.get_next_work_required_for_pow(height, header, headers_cache)
+
     @classmethod
-    def verify_header(cls, header: dict, prev_hash: str, prev_pos_hash: str, target: int, expected_header_hash: str=None) -> None:
+    def verify_header(cls, header: dict, prev_hash: str, prev_pos_hash: str, target_bits: int, expected_header_hash: str=None) -> None:
         _hash = hash_header(header)
         if expected_header_hash and expected_header_hash != _hash:
             raise InvalidHeader("hash mismatches with expected: {} vs {}".format(expected_header_hash, _hash))
@@ -309,19 +518,18 @@ class Blockchain(Logger):
             raise InvalidHeader("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if constants.net.TESTNET:
             return
-        # bits = cls.target_to_bits(target)
-        # if bits != header.get('bits'):
-        #     raise InvalidHeader("bits mismatch: %s vs %s" % (bits, header.get('bits')))
-        # block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
-        # if block_hash_as_num > target:
-        #     raise InvalidHeader(f"insufficient proof of work: {block_hash_as_num} vs target {target}")
+        if target_bits != header.get('bits'):
+            raise InvalidHeader("bits mismatch: %s vs %s" % (target_bits, header.get('bits')))
+        if not bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+            block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
+            if block_hash_as_num > Blockchain.bits_to_target(target_bits):
+                raise InvalidHeader(f"insufficient proof of work: {block_hash_as_num} vs target {Blockchain.bits_to_target(target_bits)}")
 
-    def verify_chunk(self, index: int, data: bytes) -> None:
+    def verify_chunk(self, index: int, data: bytes, headers_cache: dict = None) -> None:
         num = len(data) // HEADER_SIZE
         start_height = index * 2016
         prev_hash = self.get_hash(start_height - 1, False)
         prev_pos_hash = self.get_hash(start_height - 1, True)
-        target = self.get_target(index-1)
         for i in range(num):
             height = start_height + i
             try:
@@ -330,7 +538,15 @@ class Blockchain(Logger):
                 expected_header_hash = None
             raw_header = data[i*HEADER_SIZE : (i+1)*HEADER_SIZE]
             header = deserialize_header(raw_header, index*2016 + i)
-            self.verify_header(header, prev_hash, prev_pos_hash, target, expected_header_hash)
+            height = header['block_height']
+            pow_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
+            pos_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
+            print(f"height: {height}, header['bits']: {header['bits']}, pow_bits: {pow_bits}, pos_bits: {pos_bits}")
+            if bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+                target_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
+            else:
+                target_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
+            self.verify_header(header, prev_hash, prev_pos_hash, target_bits, expected_header_hash)
             prev_hash = hash_header(header, False)
             prev_pos_hash = hash_header(header, True)
 
@@ -622,7 +838,7 @@ class Blockchain(Logger):
         work_in_last_partial_chunk = (height % 2016 + 1) * work_in_single_header
         return running_total + work_in_last_partial_chunk
 
-    def can_connect(self, header: dict, check_height: bool=True) -> bool:
+    def can_connect(self, header: dict, check_height: bool=True, headers_cache: dict = None) -> bool:
         if header is None:
             return False
         height = header['block_height']
@@ -640,20 +856,25 @@ class Blockchain(Logger):
         if not(prev_hash == prev_block_hash or prev_pos_hash == prev_block_hash):
             return False
         try:
-            target = self.bits_to_target(header['bits'])
+            if bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+                target_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
+            else:
+                target_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
         except MissingHeader:
             return False
+        except:
+            return False
         try:
-            self.verify_header(header, prev_hash, prev_pos_hash, target)
+            self.verify_header(header, prev_hash, prev_pos_hash, target_bits)
         except BaseException as e:
             return False
         return True
 
-    def connect_chunk(self, idx: int, hexdata: str) -> bool:
+    def connect_chunk(self, idx: int, hexdata: str, headers_cache: dict = None) -> bool:
         assert idx >= 0, idx
         try:
             data = bfh(hexdata)
-            self.verify_chunk(idx, data)
+            self.verify_chunk(idx, data, headers_cache)
             self.save_chunk(idx, data)
             return True
         except BaseException as e:
@@ -682,13 +903,13 @@ def check_header(header: dict) -> Optional[Blockchain]:
     return None
 
 
-def can_connect(header: dict) -> Optional[Blockchain]:
+def can_connect(header: dict, headers_cache: dict = None) -> Optional[Blockchain]:
     """Returns the Blockchain that has a tip that directly links up
     with header, or None.
     """
     with blockchains_lock: chains = list(blockchains.values())
     for b in chains:
-        if b.can_connect(header):
+        if b.can_connect(header, True, headers_cache):
             return b
     return None
 
