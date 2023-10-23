@@ -81,6 +81,7 @@ class BitcoinAtomMainnet(AbstractNet):
     DEFAULT_PORTS = {'t': '50001', 's': '50002'}
     DEFAULT_SERVERS = read_json('servers.json', {})
     CHECKPOINTS = read_json('checkpoints.json', [])
+    POW_HEIGHT_CHANGE_CACHE = read_json('powheightchange.json', {})
     BLOCK_HEIGHT_FIRST_LIGHTNING_CHANNELS = 497000
     FORK_HEIGHT = 505888
     BCA_HEIGHT = 505888
@@ -135,6 +136,7 @@ class BitcoinAtomTestnet(AbstractNet):
     DEFAULT_PORTS = {'t': '51001', 's': '51002'}
     DEFAULT_SERVERS = read_json('servers_testnet.json', {})
     CHECKPOINTS = read_json('checkpoints_testnet.json', [])
+    POW_HEIGHT_CHANGE_CACHE = read_json('powheightchange_testnet.json', {})
     FORK_HEIGHT = 1260000
 
     XPRV_HEADERS = {

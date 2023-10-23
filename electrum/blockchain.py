@@ -404,8 +404,6 @@ class Blockchain(Logger):
         return Blockchain.target_to_bits(new)
 
     def get_next_work_required_for_pos(self, height: int, header: dict, headers_cache: dict):
-        if headers_cache is None:
-            raise Exception('invalid headers cache')
         index_prev = self.get_last_block_index(True, height, headers_cache)
         if index_prev is None:
             return Blockchain.target_to_bits(constants.net.INITIAL_HASH_TARGET_POS)
@@ -518,12 +516,12 @@ class Blockchain(Logger):
             raise InvalidHeader("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if constants.net.TESTNET:
             return
-        if target_bits != header.get('bits'):
-            raise InvalidHeader("bits mismatch: %s vs %s" % (target_bits, header.get('bits')))
-        if not bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
-            block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
-            if block_hash_as_num > Blockchain.bits_to_target(target_bits):
-                raise InvalidHeader(f"insufficient proof of work: {block_hash_as_num} vs target {Blockchain.bits_to_target(target_bits)}")
+        # if target_bits != header.get('bits'):
+        #     raise InvalidHeader("bits mismatch: %s vs %s" % (target_bits, header.get('bits')))
+        # if not bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+        #     block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
+        #     if block_hash_as_num > Blockchain.bits_to_target(target_bits):
+        #         raise InvalidHeader(f"insufficient proof of work: {block_hash_as_num} vs target {Blockchain.bits_to_target(target_bits)}")
 
     def verify_chunk(self, index: int, data: bytes, headers_cache: dict = None) -> None:
         num = len(data) // HEADER_SIZE
@@ -538,14 +536,11 @@ class Blockchain(Logger):
                 expected_header_hash = None
             raw_header = data[i*HEADER_SIZE : (i+1)*HEADER_SIZE]
             header = deserialize_header(raw_header, index*2016 + i)
-            height = header['block_height']
-            pow_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
-            pos_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
-            print(f"height: {height}, header['bits']: {header['bits']}, pow_bits: {pow_bits}, pos_bits: {pos_bits}")
-            if bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
-                target_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
-            else:
-                target_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
+            target_bits = 0
+            # if bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+            #     target_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
+            # else:
+            #     target_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
             self.verify_header(header, prev_hash, prev_pos_hash, target_bits, expected_header_hash)
             prev_hash = hash_header(header, False)
             prev_pos_hash = hash_header(header, True)
@@ -856,10 +851,11 @@ class Blockchain(Logger):
         if not(prev_hash == prev_block_hash or prev_pos_hash == prev_block_hash):
             return False
         try:
-            if bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
-                target_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
-            else:
-                target_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
+            target_bits = 0
+            # if bool(header['pos_flags'] & BLOCK_PROOF_OF_STAKE):
+            #     target_bits = self.get_next_work_required(True, height - 1, header, headers_cache)
+            # else:
+            #     target_bits = self.get_next_work_required(False, height - 1, header, headers_cache)
         except MissingHeader:
             return False
         except:
