@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME_ROOT=electrum
+NAME_ROOT=electrum-atom
 
 export PYTHONDONTWRITEBYTECODE=1  # don't create __pycache__/ folders with .pyc files
 

@@ -21,8 +21,6 @@ hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
 hiddenimports += collect_submodules('ckcc')
 hiddenimports += collect_submodules('bitbox02')
-hiddenimports += ['electrum.plugins.jade.jade']
-hiddenimports += ['electrum.plugins.jade.jadepy.jade']
 hiddenimports += ['PyQt5.QtPrintSupport']  # needed by Revealer
 
 
@@ -43,6 +41,7 @@ datas = [
     (home+'electrum/locale', 'electrum/locale'),
     (home+'electrum/plugins', 'electrum/plugins'),
     (home+'electrum/gui/icons', 'electrum/gui/icons'),
+    (home+'electrum/gui/common_qt', 'electrum/gui/common_qt'),
 ]
 datas += collect_data_files('trezorlib')
 datas += collect_data_files('safetlib')
@@ -69,7 +68,6 @@ a = Analysis([home+'run_electrum',
               home+'electrum/plugins/keepkey/qt.py',
               home+'electrum/plugins/ledger/qt.py',
               home+'electrum/plugins/coldcard/qt.py',
-              home+'electrum/plugins/jade/qt.py',
               #home+'packages/requests/utils.py'
               ],
              binaries=binaries,
@@ -129,7 +127,7 @@ exe_standalone = EXE(
     debug=False,
     strip=None,
     upx=False,
-    icon=home+'electrum/gui/icons/electrum.ico',
+    icon=home+'electrum/gui/icons/electrum-atom.ico',
     console=False)
     # console=True makes an annoying black box pop up, but it does make Electrum output command line commands, with this turned off no output will be given but commands can still be used
 
@@ -142,7 +140,7 @@ exe_portable = EXE(
     debug=False,
     strip=None,
     upx=False,
-    icon=home+'electrum/gui/icons/electrum.ico',
+    icon=home+'electrum/gui/icons/electrum-atom.ico',
     console=False)
 
 #####
@@ -156,7 +154,7 @@ exe_inside_setup_noconsole = EXE(
     debug=False,
     strip=None,
     upx=False,
-    icon=home+'electrum/gui/icons/electrum.ico',
+    icon=home+'electrum/gui/icons/electrum-atom.ico',
     console=False)
 
 exe_inside_setup_console = EXE(
@@ -167,7 +165,7 @@ exe_inside_setup_console = EXE(
     debug=False,
     strip=None,
     upx=False,
-    icon=home+'electrum/gui/icons/electrum.ico',
+    icon=home+'electrum/gui/icons/electrum-atom.ico',
     console=True)
 
 coll = COLLECT(
@@ -179,6 +177,6 @@ coll = COLLECT(
     strip=None,
     upx=True,
     debug=False,
-    icon=home+'electrum/gui/icons/electrum.ico',
+    icon=home+'electrum/gui/icons/electrum-atom.ico',
     console=False,
     name=os.path.join('dist', 'electrum'))
