@@ -1,5 +1,5 @@
 {
-    "127.0.0.1": {
+    "electrumx.bitcoinatom.io": {
         "pruning": "-",
         "t": "50001",
         "s": "50002",
