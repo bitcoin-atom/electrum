@@ -919,8 +919,8 @@ class SimpleConfig(Logger):
     )
 
     FX_USE_EXCHANGE_RATE = ConfigVar('use_exchange_rate', default=False, type_=bool)
-    FX_CURRENCY = ConfigVar('currency', default='EUR', type_=str)
-    FX_EXCHANGE = ConfigVar('use_exchange', default='CoinGecko', type_=str)  # default exchange should ideally provide historical rates
+    FX_CURRENCY = ConfigVar('currency', default='USD', type_=str)
+    FX_EXCHANGE = ConfigVar('use_exchange', default='YahooFinance', type_=str)  # default exchange should ideally provide historical rates
     FX_HISTORY_RATES = ConfigVar(
         'history_rates', default=False, type_=bool,
         short_desc=lambda: _('Download historical rates'),
@@ -1050,7 +1050,7 @@ This will result in longer routes; it might increase your fees and decrease the 
     )
 
     BLOCK_EXPLORER = ConfigVar(
-        'block_explorer', default='Blockstream.info', type_=str,
+        'block_explorer', default='bca.tokenview.io', type_=str,
         short_desc=lambda: _('Online Block Explorer'),
         long_desc=lambda: _('Choose which online block explorer to use for functions that open a web browser'),
     )

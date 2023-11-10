@@ -890,12 +890,12 @@ def age(
 
 mainnet_block_explorers = {
     'system default': ('https://bca.tokenview.io/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
+                        {'tx': 'en/tx/', 'addr': 'en/address/'}),
 }
 
 testnet_block_explorers = {
     'system default': ('https://bca.tokenview.io/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
+                       {'tx': 'en/tx/', 'addr': 'en/address/'}),
 }
 
 _block_explorer_default_api_loc = {'tx': 'tx/', 'addr': 'address/'}
@@ -1191,7 +1191,7 @@ def format_short_id(short_channel_id: Optional[bytes]):
         + 'x' + str(int.from_bytes(short_channel_id[6:], 'big'))
 
 
-def make_aiohttp_session(proxy: Optional[dict], headers=None, timeout=None):
+def make_aiohttp_session(proxy: Optional[dict], headers=None, timeout=None, cookies=None):
     if headers is None:
         headers = {'User-Agent': 'Electrum'}
     if timeout is None:
@@ -1215,7 +1215,7 @@ def make_aiohttp_session(proxy: Optional[dict], headers=None, timeout=None):
     else:
         connector = aiohttp.TCPConnector(ssl=ssl_context)
 
-    return aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector)
+    return aiohttp.ClientSession(headers=headers, timeout=timeout, connector=connector, cookies=cookies)
 
 
 class OldTaskGroup(aiorpcx.TaskGroup):
